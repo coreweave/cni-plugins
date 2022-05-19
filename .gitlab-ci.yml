@@ -13,7 +13,7 @@ release:
     refs:
     - coreweave
   before_script:
-  - apk add git nodejs npm
+  - apk add git nodejs npm bash
   script:
   - npm install
   - npx semantic-release
