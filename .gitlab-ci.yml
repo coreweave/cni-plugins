@@ -1,0 +1,19 @@
+image: golang:1.18-alpine3.15
+
+default:
+  tags:
+    - ord1-tenant
+
+stages:
+  - release
+
+release:
+  stage: release
+  only:
+    refs:
+    - coreweave
+  before_script:
+  - apk add git nodejs npm
+  script:
+  - npm install
+  - npx semantic-release

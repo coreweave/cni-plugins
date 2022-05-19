@@ -1,0 +1,32 @@
+branches:
+- coreweave
+preset: "angular"
+tagFormat: "v${version}-cw"
+plugins:
+- "@semantic-release/commit-analyzer"
+- "@semantic-release/exec"
+repositoryUrl: "git@github.com:coreweave/plugins.git"
+analyzeCommits:
+- path: "@semantic-release/commit-analyzer"
+  releaseRules:
+  - type: "feature"
+    release: "minor"
+  - type: "update"
+    release: "minor"
+  - type: "refactor"
+    release: "patch"
+  - type: "fix"
+    release: "patch"
+  - type: "docs"
+    release: "patch"
+  parserOpts:
+    noteKeywords:
+    - "BREAKING CHANGE"
+    - "BREAKING CHANGES"
+prepare:
+- path: "@semantic-release/exec"
+  publishCmd: "./build_linux.sh -ldflags '-extldflags -static -X github.com/containernetworking/plugins/pkg/utils/buildversion.BuildVersion=v${nextRelease.version}-cw'"
+publish:
+- path: "@semantic-release/github"
+  assets: 
+    path: "bin/*"
