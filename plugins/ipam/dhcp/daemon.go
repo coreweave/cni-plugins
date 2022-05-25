@@ -82,7 +82,11 @@ func (d *DHCP) Allocate(args *skel.CmdArgs, result *current.Result) error {
 		return fmt.Errorf("error parsing netconf: %v", err)
 	}
 
-	cniArgs := combineCNIArgs(args.Args, conf.Args.A)
+	netconfCniArgs := GenericIPAMArgs{}
+	if conf.Args != nil {
+		netconfCniArgs = conf.Args.A
+	}
+	cniArgs := combineCNIArgs(args.Args, netconfCniArgs)
 
 	optsRequesting, optsProviding, err := prepareOptions(cniArgs, conf.IPAM.ProvideOptions, conf.IPAM.RequestOptions)
 	if err != nil {
@@ -90,11 +94,12 @@ func (d *DHCP) Allocate(args *skel.CmdArgs, result *current.Result) error {
 	}
 
 	ipamArgs := IPAMArgs{}
-	ipamArgsJson, _ := json.Marshal(conf.Args.A)
-	if err := json.Unmarshal(ipamArgsJson, &ipamArgs); err != nil {
-		return fmt.Errorf("error parsing ipamArgs: %v", err)
+	if conf.Args != nil {
+		ipamArgsJson, _ := json.Marshal(conf.Args.A)
+		if err := json.Unmarshal(ipamArgsJson, &ipamArgs); err != nil {
+			return fmt.Errorf("error parsing ipamArgs: %v", err)
+		}
 	}
-
 	clientID := generateClientID(args.ContainerID, conf.Name, args.IfName)
 	leaseKey := clientID
 	if ipamArgs.ClientID != "" {
@@ -134,9 +139,11 @@ func (d *DHCP) Release(args *skel.CmdArgs, reply *struct{}) error {
 	}
 
 	ipamArgs := IPAMArgs{}
-	ipamArgsJson, _ := json.Marshal(conf.Args.A)
-	if err := json.Unmarshal(ipamArgsJson, &ipamArgs); err != nil {
-		return fmt.Errorf("error parsing ipamArgs: %v", err)
+	if conf.Args != nil {
+		ipamArgsJson, _ := json.Marshal(conf.Args.A)
+		if err := json.Unmarshal(ipamArgsJson, &ipamArgs); err != nil {
+			return fmt.Errorf("error parsing ipamArgs: %v", err)
+		}
 	}
 
 	clientID := generateClientID(args.ContainerID, conf.Name, args.IfName)
