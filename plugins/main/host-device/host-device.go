@@ -46,7 +46,7 @@ var (
 // Array of different linux drivers bound to network device needed for DPDK
 var userspaceDrivers = []string{"vfio-pci", "uio_pci_generic", "igb_uio"}
 
-//NetConf for host-device config, look the README to learn how to use those parameters
+// NetConf for host-device config, look the README to learn how to use those parameters
 type NetConf struct {
 	types.NetConf
 	Device        string `json:"device"` // Device-Name, something like eth0 or can0 etc.
@@ -321,6 +321,38 @@ func printLink(dev netlink.Link, cniVersion string, containerNs ns.NetNS) error 
 	return types.PrintResult(&result, cniVersion)
 }
 
+func repairLinkName(link netlink.Link) (netlink.Link, error) {
+	originalName := link.Attrs().Alias
+	originalState := link.Attrs().OperState
+	if originalName == "" {
+		return link, nil
+	}
+	linkHandler, err := netlink.NewHandle()
+	if err != nil {
+		return nil, err
+	}
+
+	if originalState == netlink.OperUp {
+		// Devices can be renamed only when down
+		if err = netlink.LinkSetDown(link); err != nil {
+			return nil, fmt.Errorf("failed to set %q down: %v", link.Attrs().Name, err)
+		}
+	}
+
+	if err = linkHandler.LinkSetName(link, originalName); err != nil {
+		return nil, err
+	}
+
+	if originalState == netlink.OperUp {
+		// Devices can be renamed only when down
+		if err = netlink.LinkSetUp(link); err != nil {
+			return nil, fmt.Errorf("failed to set %q up: %v", originalName, err)
+		}
+	}
+
+	return linkHandler.LinkByName(originalName)
+}
+
 func getLink(devname, hwaddr, kernelpath, pciaddr string) (netlink.Link, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
@@ -328,7 +360,15 @@ func getLink(devname, hwaddr, kernelpath, pciaddr string) (netlink.Link, error) 
 	}
 
 	if len(devname) > 0 {
-		return netlink.LinkByName(devname)
+		link, errName := netlink.LinkByName(devname)
+		if errName != nil {
+			if link, errLink := netlink.LinkByAlias(devname); errLink != nil {
+				return nil, errName
+			} else {
+				return repairLinkName(link)
+			}
+		}
+		return link, nil
 	} else if len(hwaddr) > 0 {
 		hwAddr, err := net.ParseMAC(hwaddr)
 		if err != nil {
